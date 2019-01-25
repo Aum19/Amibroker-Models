@@ -1,0 +1,87 @@
+
+// ***********************************************************************
+//	Financial Data Mining, Spring 2018
+//	
+//	Author(s): Kena Jalodara, Aumdevsinh Jhala
+//	Last Updated: March 29, 2018
+// 
+// 	Model Description
+//	You need to provide a description of how your model works.
+// 	Long and Short
+//
+// 	Starting Equity = $100,000
+//	
+// ***********************************************************************
+
+//*************************Here are the time constraints******************
+
+//START Determining acceptable trading hours for GDB Cup.
+isAfterMarketOpen = TimeNum() >= 082459;	//Triggers start at 8:25, first trade at 8:30.
+											// This assumes that you are using 5-minute data
+											// 082459 = 8 hours (8 AM), 24 minutes, and 59 secs.
+isBeforeTradeClose = TimeNum() <= 143459;	//Last buy trigger no later than 2:35.
+                                     		// This assumes that you are using 5-minute data
+                                      		// 143459 = 14 hours (2 PM), 34 minutes, and 59 secs.      
+isEndOfDayExit = TimeNum() >= 150459;		// Trigger exit at 3:05 to sell before market close.
+                                        	// This assumes that you are using 5-minute data
+                                        	// 150459 = 15 hours (3 PM), 4 minutes, and 59 secs
+											// This might be a problem if it is a holiday.
+
+isBuyHours = isAfterMarketOpen AND isBeforeTradeClose;
+
+//END of Determining acceptable trading hours.
+
+InitialEquity = 100000;	// Assume we start with 100 thousand dollars in equity
+MarginDeposit = 2875;	// For every 2875 dollars in your account, you can buy 1 contract
+PointValue    = 50;		// 1 point movement is a 50 gain (or loss)
+
+SetTradeDelays( 1, 1, 1, 1 );	//Entering trade happens at next open after trigger.
+BuyPrice=SellPrice=ShortPrice=CoverPrice=Open;	//Tells Amibroker to buy and sell based on open.
+
+pointStop = 10; // Default uses a 5-point stop 
+ApplyStop(stopTypeLoss,stopModePoint,pointStop,2);	//Stop loss a 5 points.
+													// See page 587 of AmiBroker User’s Guide
+													// for more details.
+
+// There are 2 ways to limit the number of contracts. Be default, we will use the first option
+SetPositionSize(15,spsShares); //Only trade 3 contracts
+//SetPositionSize( 20, spsPercentOfEquity ); //Only trade 20 percent of equity.
+
+Rb1 = 35;//Optimize("Rb1", 35, 29, 40, 3);
+Rb2 = 20;//Optimize("Rb2", 20, 14, 25, 2);
+Rb3 = 35;//Optimize("Rb3", 35, 20, 40, 5);
+
+Rs1 = 30;//Optimize("Rs1", 30, 30, 50, 5);
+Rs2 = 25;//Optimize("Rs2", 25, 20, 50, 5);
+Rs3 = 40;//Optimize("Rs3", 40, 30, 50, 5);
+Rs4 = 30;//Optimize("Rs4", 30, 20, 40, 5);
+Rs5 = 85;//Optimize("Rs5", 85, 70, 85, 5);
+Rs6 = 50;//Optimize("Rs6", 50, 45, 55, 5);
+
+Pb1=10;//Optimize("b1",10,10,20,3);
+Pb2=3;//Optimize("b2",3,2,4,1);
+Pb3=5;//Optimize("b3",5,5,14,3);
+Pb4=4;//Optimize("b4",4,2,6,2);
+
+rw1 = 5;//Optimize("rw1",5,2,10,1);
+rw2 = 17;//Optimize("rw2",17,10,50,1);
+rt = 2.9;//Optimize("rwt",2.9,0,3,0.1);
+
+Ps1=18;//Optimize("1",18,18,25,2);
+Ps2=25;//Optimize("2",25,25,30,3);
+Ps3=24;//Optimize("3",24,15,25,3);
+Ps4=3;//Optimize("4",3,3,6,3);
+ 
+C1 = 5;//Optimize("1",5,2,20,1);//7
+C2 = 3;//Optimize("2",3,2,20,1);//7
+C3 = 26;//Optimize("3",26,25,40,1);//35
+
+S1 = 11;//Optimize("1",10,3,20,2);
+S2 = 16;//Optimize("2",20,10,30,2);
+S3 = 25;//Optimize("3",10,3,25,2);
+ 
+Buy = isBuyHours AND Cross(StochD(Rb1,pb1,Pb2),LinearReg(StochD(Rb2,pb3,Pb4),Rb3));
+Sell = isEndOfDayExit  OR (Cross(MA(DEMA(Close,Rs1),Rs2),DEMA(Close,Rs3)) OR Cross(MA(StochD(Rs4,Ps1,Ps2),Rs5),StochD(Rs6,Ps3,Ps4))) OR RWI(rw1,rw2)>rt;
+
+Short = isBuyHours AND (Cross(WMA(EMA(Close,S1),S2),DEMA(Close,S3)) OR RWI(rw1,rw2)>rt) ;
+Cover = isEndOfDayExit OR Cross(DEMA(Close,C1),WMA(EMA(Close,C2),C3)); 	
